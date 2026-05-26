@@ -10,8 +10,10 @@ client = Groq(api_key=API_KEY)
 
 def get_ledger_data():
     if not os.path.exists(LOG_FILE): return []
-    with open(LOG_FILE, "r") as f:
-        return [json.loads(line) for line in f]
+    try:
+        with open(LOG_FILE, "r") as f:
+            return [json.loads(line) for line in f]
+    except: return []
 
 def get_risk_analytics():
     entries = get_ledger_data()
