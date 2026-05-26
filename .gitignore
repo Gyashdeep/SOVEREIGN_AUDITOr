@@ -1,0 +1,7 @@
+# Ignore environment variables
+.env
+# Ignore Python cache
+__pycache__/
+*.pyc
+# Ignore the log file (optional, if you want to keep the log local)
+sovereign_evidence_ledger.log
