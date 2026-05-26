@@ -1,69 +1,35 @@
 import streamlit as st
-import os
 from main import sovereign_agent_loop
 
-# 1. Page Configuration
-st.set_page_config(
-    page_title="Sovereign Governance", 
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
-
-# 2. Cyberpunk/Terminal CSS Injection
-hide_st_style = """
-    <style>
+# --- Aesthetic & UI Config ---
+st.set_page_config(page_title="Sovereign Governance", layout="centered", initial_sidebar_state="collapsed")
+st.markdown("""<style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap');
+    html, body, .stApp { font-family: 'JetBrains Mono', monospace; background-color: #000000; color: #00FF41; }
+    .status-box { border: 2px solid #00FF41; padding: 20px; background-color: #0a0a0a; text-align: center; margin-bottom: 20px; }
+    .stChatMessage { background-color: #050505; border: 1px solid #333; }
+</style>""", unsafe_allow_html=True)
+
+st.markdown('<div class="status-box"><h2>🛡️ Sovereign Governance Interface</h2><p>✅ Ledger Integrity: ONLINE</p></div>', unsafe_allow_html=True)
+
+# --- Session Management ---
+if "messages" not in st.session_state: st.session_state.messages = []
+
+for msg in st.session_state.messages:
+    with st.chat_message("assistant", avatar="⚡"): st.markdown(msg)
+
+# --- Execution ---
+if prompt := st.chat_input("Input Protocol..."):
+    with st.chat_message("user", avatar="👤"): st.markdown(prompt)
     
-    html, body, [class*="css"] {
-        font-family: 'JetBrains Mono', monospace;
-        background-color: #000000;
-        color: #00FF41;
-    }
-    
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    .status-box {
-        border: 2px solid #00FF41;
-        padding: 20px;
-        background-color: #0a0a0a;
-        text-align: center;
-        margin-bottom: 20px;
-        color: #00FF41;
-    }
-    </style>
-"""
-st.markdown(hide_st_style, unsafe_allow_html=True)
-
-# 3. Interface Status
-st.markdown("""
-    <div class="status-box">
-        <h2>🛡️ Sovereign Governance Interface</h2>
-        <p>✅ Action Authorized & Ledger Anchored.</p>
-    </div>
-""", unsafe_allow_html=True)
-
-# 4. Secure initialization check
-if "GROQ_API_KEY" not in st.secrets and "GROQ_API_KEY" not in os.environ:
-    st.error("SYSTEM ERROR: API Credentials Not Found.")
-    st.stop()
-
-# 5. Chatbox Logic
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# Display history
-for message in st.session_state.messages:
-    with st.chat_message("assistant", avatar="⚡"):
-        st.markdown(message)
-
-# Handle input
-if prompt := st.chat_input("Command Input..."):
-    st.session_state.messages.append(prompt)
-    with st.chat_message("assistant", avatar="⚡"):
-        st.markdown(prompt)
+    with st.spinner("Executing Sovereign Audit..."):
+        result = sovereign_agent_loop(prompt)
         
-        # Here you would call your agent:
-        # response = sovereign_agent_loop(prompt)
-        # st.markdown(response)
+        if result["status"] == "SHUTDOWN":
+            output = f"⚠️ **CRITICAL HALT**: {result['msg']}"
+        else:
+            data = result['data']
+            output = f"**Status**: {result['status']}\n\n**Risk Score**: {data['risk_score']}\n**Justification**: {data['justification']}\n\n---\n**Anchor**: `{result['ledger_hash']}`"
+            
+    st.session_state.messages.append(output)
+    with st.chat_message("assistant", avatar="⚡"): st.markdown(output)
