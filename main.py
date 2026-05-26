@@ -10,7 +10,6 @@ MODEL = "llama-3.3-70b-versatile"
 client = Groq(api_key=API_KEY)
 
 def verify_ledger():
-    """Validates the entire chain-of-custody."""
     if not os.path.exists(LOG_FILE): return True
     with open(LOG_FILE, "r") as f:
         lines = [json.loads(line) for line in f]
@@ -18,10 +17,21 @@ def verify_ledger():
         if lines[i]["prev_hash"] != lines[i-1]["hash"]: return False
     return True
 
+def export_audit_report():
+    """Compiles ledger into a human-readable format."""
+    if not os.path.exists(LOG_FILE): return "No Data"
+    with open(LOG_FILE, "r") as f:
+        entries = [json.loads(line) for line in f]
+    
+    report = "# SOVEREIGN AUDIT REPORT\n"
+    report += f"Generated: {datetime.datetime.utcnow().isoformat()}\n\n"
+    for e in entries:
+        report += f"- **Time**: {e['timestamp']} | **Risk**: {e['decision']['risk_score']} | **Hash**: {e['hash'][:12]}\n"
+    return report
+
 def sovereign_agent_loop(intent):
     history = [json.loads(line) for line in open(LOG_FILE, "r")] if os.path.exists(LOG_FILE) else []
     
-    # System prompt forces strict JSON return
     system_prompt = f"You are a Sovereign Auditor. Maintain rigid consistency. Return JSON: {{\"risk_score\": float, \"justification\": str}}."
     
     response = client.chat.completions.create(
@@ -34,7 +44,6 @@ def sovereign_agent_loop(intent):
     
     if res.get("risk_score", 0) > 0.8: return {"status": "SHUTDOWN", "msg": "CRITICAL RISK"}
     
-    # Cryptographic Chain Construction
     entry = {"timestamp": datetime.datetime.utcnow().isoformat(), "intent": intent, "decision": res}
     prev_hash = history[-1]["hash"] if history else "0" * 64
     entry.update({"prev_hash": prev_hash, "model": MODEL})
