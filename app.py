@@ -1,6 +1,5 @@
 import streamlit as st
-import os, json
-from main import sovereign_agent_loop, verify_ledger, get_risk_analytics
+from main import sovereign_agent_loop, verify_ledger, get_risk_analytics, export_audit_report
 
 st.set_page_config(page_title="Sovereign Governance", layout="wide")
 
@@ -29,8 +28,8 @@ with col1:
 
 with col2:
     st.subheader("⛓️ Ledger Stream")
-    if os.path.exists("sovereign_evidence_ledger.log"):
-        with open("sovereign_evidence_ledger.log", "r") as f:
-            for line in reversed(f.readlines()[-5:]):
-                e = json.loads(line)
-                st.code(f"{e['hash'][:10]}... | Risk: {e['decision']['risk_score']}")
+    # Display full history via report button
+    st.download_button("📄 Download Full Audit Report", export_audit_report(), "audit_report.md")
+    
+    for e in reversed(get_ledger_data()[-5:]):
+        st.code(f"{e['hash'][:10]}... | Risk: {e['decision']['risk_score']}")
