@@ -1,4 +1,5 @@
 import streamlit as st
+import os  # <--- THIS WAS THE MISSING IMPORT
 import main
 
 st.set_page_config(page_title="Sovereign Governance", layout="wide")
@@ -6,7 +7,10 @@ st.markdown("""<style>.stApp { background-color: #050505; color: #00FF41; font-f
 
 if not main.verify_ledger():
     st.error("!!! FATAL: LEDGER INTEGRITY BREACHED !!!")
-    if st.button("Reset Ledger"): os.remove("sovereign_evidence_ledger.log"); st.rerun()
+    # Now os.remove() will work because os is imported
+    if st.button("Reset Ledger"): 
+        os.remove("sovereign_evidence_ledger.log")
+        st.rerun()
     st.stop()
 
 st.title("🛡️ SOVEREIGN DEFENSIVE CORE")
