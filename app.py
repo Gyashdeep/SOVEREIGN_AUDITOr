@@ -1,5 +1,5 @@
 import streamlit as st
-from auditor import sovereign_agent_loop
+from main import sovereign_agent_loop
 
 st.set_page_config(page_title="🛡️Sovereign Auditor", layout="centered")
 st.title("🛡️ Sovereign Governance Interface")
