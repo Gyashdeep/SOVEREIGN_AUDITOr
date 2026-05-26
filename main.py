@@ -1,12 +1,14 @@
 import os, json, hashlib, datetime, statistics
 from groq import Groq
 
+# SECURE CONFIGURATION
 API_KEY = os.environ.get("GROQ_API_KEY")
 LOG_FILE = "sovereign_evidence_ledger.log"
 MODEL = "llama-3.3-70b-versatile"
 client = Groq(api_key=API_KEY)
 
 def get_ledger_data():
+    """Retrieves all ledger entries safely."""
     if not os.path.exists(LOG_FILE): return []
     try:
         with open(LOG_FILE, "r") as f:
@@ -14,14 +16,22 @@ def get_ledger_data():
     except: return []
 
 def export_audit_report():
+    """Generates a markdown audit report."""
     entries = get_ledger_data()
     report = "# SOVEREIGN AUDIT REPORT\nGenerated: " + datetime.datetime.utcnow().isoformat() + "\n\n"
     for e in entries:
         report += f"- **Time**: {e['timestamp']} | **Risk**: {e['decision']['risk_score']} | **Hash**: {e['hash'][:12]}\n"
     return report
 
+def verify_ledger():
+    """Checks the cryptographic chain integrity."""
+    lines = get_ledger_data()
+    for i in range(1, len(lines)):
+        if lines[i]["prev_hash"] != lines[i-1]["hash"]: return False
+    return True
+
 def check_anomaly(risks):
-    """Monitors Risk Velocity (Z-Score) to prevent rapid injection attacks."""
+    """Monitors Risk Velocity to prevent rapid injection attacks."""
     if len(risks) < 5: return False
     mean = statistics.mean(risks[-5:])
     stdev = statistics.stdev(risks[-5:]) if len(risks) > 1 else 1
