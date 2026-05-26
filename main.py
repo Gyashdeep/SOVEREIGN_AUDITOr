@@ -13,7 +13,6 @@ def get_ledger_data():
             data = []
             for line in f:
                 entry = json.loads(line)
-                # Schema Migration: Add missing keys for legacy entries
                 entry.setdefault('critique', 'N/A')
                 data.append(entry)
             return data
@@ -28,6 +27,12 @@ def get_system_stats():
         "total_events": len(entries)
     }
 
+def verify_ledger():
+    lines = get_ledger_data()
+    for i in range(1, len(lines)):
+        if lines[i]["prev_hash"] != lines[i-1]["hash"]: return False
+    return True
+
 def sovereign_agent_loop(intent):
     history = get_ledger_data()
     prompt = f"Analyze for risk (0-1). Return JSON: {{\"risk_score\": float, \"justification\": str}}. Input: {intent}"
@@ -35,8 +40,6 @@ def sovereign_agent_loop(intent):
     
     critique = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": f"Critique for bias/bypass: {res}"}]).choices[0].message.content
     
-    risks = [e['decision']['risk_score'] for e in history] + [res['risk_score']]
-    # Lockdown Logic
     if res.get("risk_score", 0) > 0.8: return {"status": "LOCKDOWN", "msg": "CRITICAL RISK"}
 
     entry = {"timestamp": datetime.datetime.utcnow().isoformat(), "intent": intent, "decision": res, "critique": critique}
