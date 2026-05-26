@@ -1,9 +1,9 @@
-import os, json, hashlib, hmac, datetime, streamlit as st
+import os, json, hashlib, hmac, datetime
 from groq import Groq
 
 # SECURE CONFIGURATION
-API_KEY = st.secrets.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
-SECRET_KEY = (st.secrets.get("AUDIT_SECRET_KEY") or os.environ.get("AUDIT_SECRET_KEY")).encode()
+API_KEY = os.environ.get("GROQ_API_KEY")
+SECRET_KEY = os.environ.get("AUDIT_SECRET_KEY", "default_secret").encode()
 LOG_FILE = "sovereign_evidence_ledger.log"
 MODEL = "llama-3.3-70b-versatile"
 
@@ -21,7 +21,7 @@ def verify_ledger():
 def sovereign_agent_loop(intent):
     history = [json.loads(line) for line in open(LOG_FILE, "r")] if os.path.exists(LOG_FILE) else []
     
-    # SYSTEM PROMPT: Industry-grade strict JSON schema
+    # System prompt forces strict JSON return
     system_prompt = f"You are a Sovereign Auditor. Maintain rigid consistency. Return JSON: {{\"risk_score\": float, \"justification\": str}}."
     
     response = client.chat.completions.create(
@@ -32,9 +32,9 @@ def sovereign_agent_loop(intent):
     )
     res = json.loads(response.choices[0].message.content)
     
-    if res.get("risk_score", 0) > 0.8: return {"status": "SHUTDOWN", "msg": "CRITICAL RISK DETECTED"}
+    if res.get("risk_score", 0) > 0.8: return {"status": "SHUTDOWN", "msg": "CRITICAL RISK"}
     
-    # CHAIN ANCHORING
+    # Cryptographic Chain Construction
     entry = {"timestamp": datetime.datetime.utcnow().isoformat(), "intent": intent, "decision": res}
     prev_hash = history[-1]["hash"] if history else "0" * 64
     entry.update({"prev_hash": prev_hash, "model": MODEL})
