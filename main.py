@@ -1,8 +1,9 @@
-import os, json, hashlib, datetime
+import os, json, hashlib, hmac, datetime
 from groq import Groq
 
 # SECURE CONFIGURATION
 API_KEY = os.environ.get("GROQ_API_KEY")
+SECRET_KEY = os.environ.get("AUDIT_SECRET_KEY", "default_secret").encode()
 LOG_FILE = "sovereign_evidence_ledger.log"
 MODEL = "llama-3.3-70b-versatile"
 
@@ -10,10 +11,8 @@ client = Groq(api_key=API_KEY)
 
 def get_ledger_data():
     if not os.path.exists(LOG_FILE): return []
-    try:
-        with open(LOG_FILE, "r") as f:
-            return [json.loads(line) for line in f]
-    except: return []
+    with open(LOG_FILE, "r") as f:
+        return [json.loads(line) for line in f]
 
 def get_risk_analytics():
     entries = get_ledger_data()
@@ -47,7 +46,7 @@ def sovereign_agent_loop(intent):
     )
     res = json.loads(response.choices[0].message.content)
     
-    if res.get("risk_score", 0) > 0.8: return {"status": "SHUTDOWN", "msg": "CRITICAL RISK"}
+    if res.get("risk_score", 0) > 0.8: return {"status": "SHUTDOWN", "msg": "CRITICAL RISK - NOTIFICATION TRIGGERED"}
     
     entry = {"timestamp": datetime.datetime.utcnow().isoformat(), "intent": intent, "decision": res}
     prev_hash = history[-1]["hash"] if history else "0" * 64
