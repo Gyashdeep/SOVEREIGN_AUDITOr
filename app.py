@@ -15,8 +15,11 @@ col1, col2 = st.columns(2)
 col1.metric("System Stability", f"{stats['stability']:.2%}")
 col2.metric("Total Events", stats['total_events'])
 
+if st.sidebar.download_button("📥 Export Audit Report", main.export_audit_report(), "audit_report.md"):
+    st.sidebar.success("Report Generated")
+
 if prompt := st.chat_input("Input Command..."):
-    with st.spinner("Executing Audit..."):
+    with st.spinner("Auditing..."):
         res = main.sovereign_agent_loop(prompt)
         if res["status"] == "LOCKDOWN": st.error("!!! DEFENSIVE LOCKDOWN !!!")
         else: st.success(f"Audit Secure | Anchor: {res['ledger_hash'][:12]}")
