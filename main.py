@@ -9,6 +9,14 @@ MODEL = "llama-3.3-70b-versatile"
 
 client = Groq(api_key=API_KEY)
 
+def get_risk_analytics():
+    """Calculates aggregate system risk metrics."""
+    if not os.path.exists(LOG_FILE): return {"avg_risk": 0.0, "total_events": 0}
+    with open(LOG_FILE, "r") as f:
+        entries = [json.loads(line) for line in f]
+    risks = [e['decision']['risk_score'] for e in entries]
+    return {"avg_risk": sum(risks)/len(risks), "total_events": len(entries)}
+
 def verify_ledger():
     if not os.path.exists(LOG_FILE): return True
     with open(LOG_FILE, "r") as f:
@@ -17,21 +25,10 @@ def verify_ledger():
         if lines[i]["prev_hash"] != lines[i-1]["hash"]: return False
     return True
 
-def export_audit_report():
-    """Compiles ledger into a human-readable format."""
-    if not os.path.exists(LOG_FILE): return "No Data"
-    with open(LOG_FILE, "r") as f:
-        entries = [json.loads(line) for line in f]
-    
-    report = "# SOVEREIGN AUDIT REPORT\n"
-    report += f"Generated: {datetime.datetime.utcnow().isoformat()}\n\n"
-    for e in entries:
-        report += f"- **Time**: {e['timestamp']} | **Risk**: {e['decision']['risk_score']} | **Hash**: {e['hash'][:12]}\n"
-    return report
-
 def sovereign_agent_loop(intent):
     history = [json.loads(line) for line in open(LOG_FILE, "r")] if os.path.exists(LOG_FILE) else []
     
+    # System prompt forces strict JSON return
     system_prompt = f"You are a Sovereign Auditor. Maintain rigid consistency. Return JSON: {{\"risk_score\": float, \"justification\": str}}."
     
     response = client.chat.completions.create(
@@ -42,7 +39,8 @@ def sovereign_agent_loop(intent):
     )
     res = json.loads(response.choices[0].message.content)
     
-    if res.get("risk_score", 0) > 0.8: return {"status": "SHUTDOWN", "msg": "CRITICAL RISK"}
+    # Notify logic: You can add an API call here to trigger SMS/Email if risk > 0.8
+    if res.get("risk_score", 0) > 0.8: return {"status": "SHUTDOWN", "msg": "CRITICAL RISK - NOTIFICATION TRIGGERED"}
     
     entry = {"timestamp": datetime.datetime.utcnow().isoformat(), "intent": intent, "decision": res}
     prev_hash = history[-1]["hash"] if history else "0" * 64
