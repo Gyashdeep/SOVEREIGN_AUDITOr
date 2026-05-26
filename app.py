@@ -1,49 +1,36 @@
-import os, json, hashlib, hmac, datetime, streamlit as st
-from groq import Groq
+import streamlit as st
+from main import sovereign_agent_loop
 
-# SECURE CONFIGURATION
-API_KEY = st.secrets.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
-SECRET_KEY = (st.secrets.get("AUDIT_SECRET_KEY") or os.environ.get("AUDIT_SECRET_KEY")).encode()
-LOG_FILE = "sovereign_evidence_ledger.log"
-MODEL = "llama-3.3-70b-versatile"
+st.set_page_config(page_title="Sovereign Governance", layout="centered")
 
-client = Groq(api_key=API_KEY)
+st.markdown("""<style>
+    .stApp { background-color: #000; color: #00FF41; font-family: 'Courier New', monospace; }
+    .status-box { border: 2px solid #00FF41; padding: 15px; text-align: center; }
+</style>""", unsafe_allow_html=True)
 
-def check_integrity():
-    if not os.path.exists(LOG_FILE): return True
-    with open(LOG_FILE, "r") as f:
-        lines = f.readlines()
-        for i in range(1, len(lines)):
-            prev = json.loads(lines[i-1])
-            curr = json.loads(lines[i])
-            if curr["prev_hash"] != prev["hash"]: return False
-    return True
+st.markdown('<div class="status-box"><h2>🛡️ Sovereign Governance Interface</h2></div>', unsafe_allow_html=True)
 
-def sovereign_agent_loop(intent):
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": "You are a Sovereign Auditor. Focus on technical risk and logic. Return JSON: {'risk_score': float, 'justification': str}."},
-            {"role": "user", "content": intent}
-        ],
-        response_format={"type": "json_object"},
-        temperature=0
-    )
-    res = json.loads(response.choices[0].message.content)
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+for msg in st.session_state.messages:
+    with st.chat_message("assistant", avatar="⚡"):
+        st.markdown(msg)
+
+if prompt := st.chat_input("Command Input..."):
+    with st.chat_message("user", avatar="👤"):
+        st.markdown(prompt)
     
-    if res["risk_score"] > 0.8: return {"status": "SHUTDOWN", "msg": "CRITICAL RISK DETECTED"}
-    
-    entry = {"timestamp": datetime.datetime.utcnow().isoformat(), "intent": intent, "decision": res}
-    prev_hash = "0"*64
-    if os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "r") as f:
-            lines = f.readlines()
-            if lines: prev_hash = json.loads(lines[-1])["hash"]
+    with st.spinner("Processing..."):
+        try:
+            res = sovereign_agent_loop(prompt)
+            if res["status"] == "SHUTDOWN":
+                output = f"⚠️ **{res['msg']}**"
+            else:
+                output = f"**Status**: {res['status']}\n**Justification**: {res['data']['justification']}\n**Hash**: `{res['ledger_hash']}`"
             
-    entry.update({"prev_hash": prev_hash, "model": MODEL})
-    entry_str = json.dumps(entry, sort_keys=True)
-    entry["hash"] = hashlib.sha256((entry_str + prev_hash).encode()).hexdigest()
-    entry["signature"] = hmac.new(SECRET_KEY, entry_str.encode(), hashlib.sha256).hexdigest()
-    
-    with open(LOG_FILE, "a") as f: f.write(json.dumps(entry) + "\n")
-    return {"status": "AUTHORIZED", "data": res, "ledger_hash": entry["hash"]}
+            st.session_state.messages.append(output)
+            with st.chat_message("assistant", avatar="⚡"):
+                st.markdown(output)
+        except Exception as e:
+            st.error(f"Execution Error: {str(e)}")
