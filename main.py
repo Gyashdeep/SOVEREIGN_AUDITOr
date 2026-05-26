@@ -10,20 +10,21 @@ MODEL = "llama-3.3-70b-versatile"
 client = Groq(api_key=API_KEY)
 
 def get_ledger_state():
-    """Reads ledger for recursive self-audit."""
     if not os.path.exists(LOG_FILE): return []
     with open(LOG_FILE, "r") as f:
         return [json.loads(line) for line in f]
 
 def sovereign_agent_loop(intent):
     history = get_ledger_state()
-    # Recursive Audit: Agent sees its own history to maintain governance continuity
     context = "Recent history: " + json.dumps(history[-3:]) if history else "No history."
+    
+    # Corrected f-string with escaped braces for JSON schema
+    system_prompt = f"You are a Sovereign Auditor. {context}. Maintain rigid logical consistency. Return JSON: {{\"risk_score\": float, \"justification\": str}}."
     
     response = client.chat.completions.create(
         model=MODEL,
         messages=[
-            {"role": "system", "content": f"You are a Sovereign Auditor. {context}. Maintain rigid logical consistency. Return JSON: {'risk_score': float, 'justification': str}."},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": intent}
         ],
         response_format={"type": "json_object"},
@@ -31,9 +32,10 @@ def sovereign_agent_loop(intent):
     )
     res = json.loads(response.choices[0].message.content)
     
-    if res["risk_score"] > 0.8: return {"status": "SHUTDOWN", "msg": "CRITICAL RISK"}
+    if res.get("risk_score", 0) > 0.8: 
+        return {"status": "SHUTDOWN", "msg": "CRITICAL RISK"}
     
-    # Cryptographic Chain
+    # Cryptographic Chain Construction
     entry = {"timestamp": datetime.datetime.utcnow().isoformat(), "intent": intent, "decision": res}
     prev_hash = history[-1]["hash"] if history else "0" * 64
     entry.update({"prev_hash": prev_hash, "model": MODEL})
