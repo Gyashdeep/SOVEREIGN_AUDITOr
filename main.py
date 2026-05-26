@@ -9,40 +9,38 @@ MODEL = "llama-3.3-70b-versatile"
 
 client = Groq(api_key=API_KEY)
 
-def get_ledger_state():
-    if not os.path.exists(LOG_FILE): return []
+def verify_ledger():
+    """Validates the entire chain-of-custody."""
+    if not os.path.exists(LOG_FILE): return True
     with open(LOG_FILE, "r") as f:
-        return [json.loads(line) for line in f]
+        lines = [json.loads(line) for line in f]
+    for i in range(1, len(lines)):
+        if lines[i]["prev_hash"] != lines[i-1]["hash"]: return False
+    return True
 
 def sovereign_agent_loop(intent):
-    history = get_ledger_state()
-    context = "Recent history: " + json.dumps(history[-3:]) if history else "No history."
+    history = [json.loads(line) for line in open(LOG_FILE, "r")] if os.path.exists(LOG_FILE) else []
     
-    # Corrected f-string with escaped braces for JSON schema
-    system_prompt = f"You are a Sovereign Auditor. {context}. Maintain rigid logical consistency. Return JSON: {{\"risk_score\": float, \"justification\": str}}."
+    # SYSTEM PROMPT: Industry-grade strict JSON schema
+    system_prompt = f"You are a Sovereign Auditor. Maintain rigid consistency. Return JSON: {{\"risk_score\": float, \"justification\": str}}."
     
     response = client.chat.completions.create(
         model=MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": intent}
-        ],
+        messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": intent}],
         response_format={"type": "json_object"},
         temperature=0
     )
     res = json.loads(response.choices[0].message.content)
     
-    if res.get("risk_score", 0) > 0.8: 
-        return {"status": "SHUTDOWN", "msg": "CRITICAL RISK"}
+    if res.get("risk_score", 0) > 0.8: return {"status": "SHUTDOWN", "msg": "CRITICAL RISK DETECTED"}
     
-    # Cryptographic Chain Construction
+    # CHAIN ANCHORING
     entry = {"timestamp": datetime.datetime.utcnow().isoformat(), "intent": intent, "decision": res}
     prev_hash = history[-1]["hash"] if history else "0" * 64
     entry.update({"prev_hash": prev_hash, "model": MODEL})
     
     entry_str = json.dumps(entry, sort_keys=True)
     entry["hash"] = hashlib.sha256((entry_str + prev_hash).encode()).hexdigest()
-    entry["signature"] = hmac.new(SECRET_KEY, entry_str.encode(), hashlib.sha256).hexdigest()
     
     with open(LOG_FILE, "a") as f: f.write(json.dumps(entry) + "\n")
     return {"status": "AUTHORIZED", "data": res, "ledger_hash": entry["hash"]}
