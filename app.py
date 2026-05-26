@@ -1,34 +1,34 @@
 import streamlit as st
-from main import sovereign_agent_loop, get_ledger_state
+from main import sovereign_agent_loop, verify_ledger
 
 st.set_page_config(page_title="Sovereign Governance", layout="wide")
 
 st.markdown("""<style>
-    .stApp { background-color: #000; color: #00FF41; font-family: 'Courier New', monospace; }
-    .status-box { border: 2px solid #00FF41; padding: 15px; text-align: center; }
+    .stApp { background-color: #050505; color: #00FF41; font-family: 'JetBrains Mono', monospace; }
+    .status-bar { border: 1px solid #00FF41; padding: 10px; background: #000; margin-bottom: 20px; }
 </style>""", unsafe_allow_html=True)
 
-st.markdown('<div class="status-box"><h2>🛡️ Sovereign Governance Core</h2></div>', unsafe_allow_html=True)
+# Integrity Guardrail
+if not verify_ledger():
+    st.error("FATAL ERROR: LEDGER INTEGRITY BREACHED. SYSTEM HALTED.")
+    st.stop()
 
-if "messages" not in st.session_state: st.session_state.messages = []
+st.markdown('<div class="status-bar"><h2>🛡️ Sovereign Governance Core | Status: SECURE</h2></div>', unsafe_allow_html=True)
 
-for msg in st.session_state.messages: st.chat_message("assistant", avatar="⚡").markdown(msg)
+col1, col2 = st.columns([2, 1])
 
-if prompt := st.chat_input("Command Input..."):
-    with st.chat_message("user", avatar="👤"): st.markdown(prompt)
-    
-    with st.spinner("Anchoring to Ledger..."):
-        try:
+with col1:
+    if prompt := st.chat_input("Enter Command..."):
+        with st.spinner("Executing..."):
             res = sovereign_agent_loop(prompt)
-            if res["status"] == "SHUTDOWN":
-                output = f"⚠️ **CRITICAL HALT**: {res['msg']}"
-            else:
-                data = res['data']
-                output = f"**Status**: {res['status']}\n**Risk**: {data['risk_score']}\n**Justification**: {data['justification']}\n**Anchor**: `{res['ledger_hash']}`"
-            
-            st.session_state.messages.append(output)
-            st.chat_message("assistant", avatar="⚡").markdown(output)
-        except Exception as e:
-            st.error(f"SYSTEM ERROR: {e}")
+            if res["status"] == "SHUTDOWN": st.error(res["msg"])
+            else: st.success(f"Audit Complete | Anchor: `{res['ledger_hash'][:16]}`")
 
-# Visualizing the chain logic
+with col2:
+    st.subheader("⛓️ Ledger Stream")
+    # Display recent hashes for audit
+    if os.path.exists("sovereign_evidence_ledger.log"):
+        with open("sovereign_evidence_ledger.log", "r") as f:
+            for line in reversed(f.readlines()[-5:]):
+                entry = json.loads(line)
+                st.code(f"{entry['hash'][:10]}... | {entry['decision']['risk_score']}")
