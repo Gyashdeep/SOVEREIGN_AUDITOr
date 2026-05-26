@@ -10,7 +10,6 @@ MODEL = "llama-3.3-70b-versatile"
 client = Groq(api_key=API_KEY)
 
 def check_integrity():
-    """Validates the cryptographic chain."""
     if not os.path.exists(LOG_FILE): return True
     with open(LOG_FILE, "r") as f:
         lines = f.readlines()
@@ -21,11 +20,10 @@ def check_integrity():
     return True
 
 def sovereign_agent_loop(intent):
-    # Sentiment-adjusted audit
     response = client.chat.completions.create(
         model=MODEL,
         messages=[
-            {"role": "system", "content": "You are a Sovereign Auditor. Focus on technical risk and logic. Ignore emotional tone. Return JSON: {'risk_score': float, 'justification': str}."},
+            {"role": "system", "content": "You are a Sovereign Auditor. Focus on technical risk and logic. Return JSON: {'risk_score': float, 'justification': str}."},
             {"role": "user", "content": intent}
         ],
         response_format={"type": "json_object"},
@@ -33,9 +31,8 @@ def sovereign_agent_loop(intent):
     )
     res = json.loads(response.choices[0].message.content)
     
-    if res["risk_score"] > 0.8: return {"status": "SHUTDOWN", "msg": "CRITICAL RISK"}
+    if res["risk_score"] > 0.8: return {"status": "SHUTDOWN", "msg": "CRITICAL RISK DETECTED"}
     
-    # Sign and Chain
     entry = {"timestamp": datetime.datetime.utcnow().isoformat(), "intent": intent, "decision": res}
     prev_hash = "0"*64
     if os.path.exists(LOG_FILE):
