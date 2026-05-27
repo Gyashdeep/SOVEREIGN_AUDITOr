@@ -1,8 +1,11 @@
 import os, json, hashlib, datetime, statistics
 from groq import Groq
 
-# Ensure API_KEY is set in your environment
-LOG_FILE = "sovereign_evidence_ledger.log"
+# Use a subdirectory to hide the log from the Streamlit file watcher
+DATA_DIR = "data"
+if not os.path.exists(DATA_DIR): os.makedirs(DATA_DIR)
+LOG_FILE = os.path.join(DATA_DIR, "sovereign_evidence_ledger.log")
+
 MODEL = "llama-3.3-70b-versatile"
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
