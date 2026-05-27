@@ -1,11 +1,12 @@
-import streamlit as st
 import os
+os.environ["STREAMLIT_SERVER_FILE_WATCHER_TYPE"] = "none"
+
+import streamlit as st
 import main
 
 st.set_page_config(page_title="Sovereign Governance", layout="wide")
 st.markdown("""<style>.stApp { background-color: #050505; color: #00FF41; font-family: 'Courier New'; }</style>""", unsafe_allow_html=True)
 
-# GATED INITIALIZATION
 if "ledger_checked" not in st.session_state:
     st.session_state.is_valid = main.verify_ledger()
     st.session_state.ledger_checked = True
@@ -13,21 +14,18 @@ if "ledger_checked" not in st.session_state:
 if not st.session_state.is_valid:
     st.error("!!! FATAL: LEDGER INTEGRITY BREACHED !!!")
     if st.button("RESET CORE"):
-        if os.path.exists("sovereign_evidence_ledger.log"):
-            os.remove("sovereign_evidence_ledger.log")
+        if os.path.exists(main.LOG_FILE): os.remove(main.LOG_FILE)
         st.session_state.is_valid = True
         st.rerun()
     st.stop()
 
 st.title("🛡️ SOVEREIGN DEFENSIVE CORE")
 
-# Display Stats
 stats = main.get_system_stats()
 col1, col2 = st.columns(2)
 col1.metric("System Stability", f"{stats['stability']:.2%}")
 col2.metric("Total Events", stats['total_events'])
 
-# USE FORM TO PREVENT RE-RUN ON EVERY KEYSTROKE
 with st.form("audit_form", clear_on_submit=True):
     prompt = st.text_input("Input Command...")
     submitted = st.form_submit_button("Execute Audit")
