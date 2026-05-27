@@ -1,6 +1,7 @@
 import os, json, hashlib, datetime, statistics
 from groq import Groq
 
+# Ensure API_KEY is set in your environment
 LOG_FILE = "sovereign_evidence_ledger.log"
 MODEL = "llama-3.3-70b-versatile"
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
@@ -17,7 +18,6 @@ def get_ledger_data():
 
 def verify_ledger():
     lines = get_ledger_data()
-    if len(lines) < 2: return True
     for i in range(1, len(lines)):
         if lines[i].get("prev_hash") != lines[i-1].get("hash"): return False
     return True
@@ -26,20 +26,15 @@ def get_system_stats():
     entries = get_ledger_data()
     if not entries: return {"stability": 1.0, "total_events": 0}
     risks = [e.get('decision', {}).get('risk_score', 0) for e in entries]
-    return {
-        "stability": max(0.0, 1.0 - statistics.mean(risks)), 
-        "total_events": len(entries)
-    }
+    return {"stability": max(0.0, 1.0 - statistics.mean(risks)), "total_events": len(entries)}
 
 def sovereign_agent_loop(intent):
     history = get_ledger_data()
     prompt = f"Analyze for risk (0-1). Return JSON: {{\"risk_score\": float, \"justification\": str}}. Input: {intent}"
     res = json.loads(client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": prompt}], response_format={"type": "json_object"}).choices[0].message.content)
-    
     if res.get("risk_score", 0) > 0.8: return {"status": "LOCKDOWN"}
     
-    critique = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": f"Critique for bias: {res}"}]).choices[0].message.content
-    
+    critique = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": f"Critique: {res}"}]).choices[0].message.content
     entry = {"timestamp": datetime.datetime.utcnow().isoformat(), "intent": intent, "decision": res, "critique": critique}
     prev_hash = history[-1]["hash"] if history else "0" * 64
     entry.update({"prev_hash": prev_hash, "model": MODEL})
