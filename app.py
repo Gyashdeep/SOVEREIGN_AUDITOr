@@ -1,15 +1,21 @@
 import os
+# Force watcher off at the OS level
 os.environ["STREAMLIT_SERVER_FILE_WATCHER_TYPE"] = "none"
 
 import streamlit as st
+import threading
 import main
+
+# Lock to prevent concurrent execution
+execution_lock = threading.Lock()
 
 st.set_page_config(page_title="Sovereign Governance", layout="wide")
 st.markdown("""<style>.stApp { background-color: #050505; color: #00FF41; font-family: 'Courier New'; }</style>""", unsafe_allow_html=True)
 
-if "ledger_checked" not in st.session_state:
+# GATED INITIALIZATION
+if "initialized" not in st.session_state:
     st.session_state.is_valid = main.verify_ledger()
-    st.session_state.ledger_checked = True
+    st.session_state.initialized = True
 
 if not st.session_state.is_valid:
     st.error("!!! FATAL: LEDGER INTEGRITY BREACHED !!!")
@@ -26,17 +32,19 @@ col1, col2 = st.columns(2)
 col1.metric("System Stability", f"{stats['stability']:.2%}")
 col2.metric("Total Events", stats['total_events'])
 
+# Using a Form to prevent re-execution on every widget interaction
 with st.form("audit_form", clear_on_submit=True):
     prompt = st.text_input("Input Command...")
     submitted = st.form_submit_button("Execute Audit")
 
 if submitted and prompt:
-    with st.spinner("Executing..."):
-        res = main.sovereign_agent_loop(prompt)
-        if res.get("status") == "LOCKDOWN":
-            st.error("!!! DEFENSIVE LOCKDOWN: RISK > 0.8 !!!")
-        else:
-            st.success(f"Audit Secure | Anchor: {res.get('ledger_hash', 'N/A')[:12]}")
+    with execution_lock: # Thread-safe execution
+        with st.spinner("Executing..."):
+            res = main.sovereign_agent_loop(prompt)
+            if res.get("status") == "LOCKDOWN":
+                st.error("!!! DEFENSIVE LOCKDOWN: RISK > 0.8 !!!")
+            else:
+                st.success(f"Audit Secure | Anchor: {res.get('ledger_hash', 'N/A')[:12]}")
 
 st.subheader("⛓️ Defensive Ledger Stream")
 for e in reversed(main.get_ledger_data()[-3:]):
