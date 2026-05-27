@@ -1,9 +1,8 @@
-import os, json, hashlib, datetime, statistics
+import os, json, hashlib, datetime, statistics, tempfile
 from groq import Groq
 
-# Create data directory
-if not os.path.exists("data"): os.makedirs("data")
-LOG_FILE = "data/sovereign_evidence_ledger.log"
+# Store log in OS Temp to prevent Streamlit from seeing file changes
+LOG_FILE = os.path.join(tempfile.gettempdir(), "sovereign_evidence_ledger.log")
 
 MODEL = "llama-3.3-70b-versatile"
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
