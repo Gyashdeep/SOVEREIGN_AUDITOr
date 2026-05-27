@@ -1,29 +1,23 @@
 import os, json, hashlib, datetime, statistics
 from groq import Groq
 
-# Use a subdirectory to hide the log from the Streamlit file watcher
-DATA_DIR = "data"
-if not os.path.exists(DATA_DIR): os.makedirs(DATA_DIR)
-LOG_FILE = os.path.join(DATA_DIR, "sovereign_evidence_ledger.log")
+# Create data directory
+if not os.path.exists("data"): os.makedirs("data")
+LOG_FILE = "data/sovereign_evidence_ledger.log"
 
 MODEL = "llama-3.3-70b-versatile"
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 def get_ledger_data():
     if not os.path.exists(LOG_FILE): return []
-    data = []
     try:
         with open(LOG_FILE, "r") as f:
-            for line in f:
-                if line.strip(): data.append(json.loads(line))
-    except: pass
-    return data
+            return [json.loads(line) for line in f if line.strip()]
+    except: return []
 
 def verify_ledger():
     lines = get_ledger_data()
-    for i in range(1, len(lines)):
-        if lines[i].get("prev_hash") != lines[i-1].get("hash"): return False
-    return True
+    return all(lines[i].get("prev_hash") == lines[i-1].get("hash") for i in range(1, len(lines)))
 
 def get_system_stats():
     entries = get_ledger_data()
